@@ -69,14 +69,10 @@ char *tsave;
 ([0-9]+\.){3}[0-9]+\/[0-9]+	 	{ TSAVE(yytext);yylval.strval=tsave; return T_IP_IP6_PORT; }
 ([0-9A-Fa-f][0-9A-Fa-f]:){5}[0-9A-Fa-f][0-9A-Fa-f]  { TSAVE(yytext);yylval.strval=tsave; return T_MAC; 			       }
 
-(\.{1})*([A-Za-z0-9_-]+\.)+[A-Za-z0-9]+	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
-(\.{1})*([A-Za-z0-9_-]+\.)+'[\[A-Za-z0-9@,:_\-\.\]]+'	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
-(\.{1})*([A-Za-z0-9_-]+\.)+((\"{1})*[A-Za-z0-9,:_\-\.]+(\"{1})*)+	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
-([0-9]+:){3}[0-9]+\.[0-9]+	{ TSAVE(yytext);yylval.strval=tsave; return T_TIMETICKS; }
-[Mm][Aa][Ii][Nn]        { yylval.strval=yytext;return T_MAIN; }
 SnmpWriteControl	{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_SNMPW;   }
 SnmpMibObject		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_SNMPSET; }
 ManufacturerCVC		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_CVC; }
+MtaConfigDelimiter		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENTIFIER; }
 CoSignerCVC		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_CVC; }
 Integer			{ return T_ASNTYPE_INT; 	}
 Unsigned32		{ return T_ASNTYPE_UINT; 	}
@@ -103,6 +99,14 @@ TlvValue		{ return T_TLV_VALUE; 	}
 TlvString		{ return T_TLV_STR_VALUE; 	}
 TlvStringZero		{ return T_TLV_STRZERO_VALUE; 	}
 TlvType			{ return T_TLV_TYPE;		}
+
+[Mm][Aa][Ii][Nn]        { yylval.strval=yytext;return T_MAIN; }
+(\.{1})*([A-Za-z])([A-Za-z0-9_-])*	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
+(\.{1})*([A-Za-z0-9_-]+\.)+[A-Za-z0-9]+	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
+(\.{1})*([A-Za-z0-9_-]+\.)+'[\[A-Za-z0-9@,:_\-\.\]]+'	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
+(\.{1})*([A-Za-z0-9_-]+\.)+((\"{1})*[A-Za-z0-9,:_\-\.]+(\"{1})*)+	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
+([0-9]+:){3}[0-9]+\.[0-9]+	{ TSAVE(yytext);yylval.strval=tsave; return T_TIMETICKS; }
+
 [A-Za-z]+[A-Za-z0-9]*	{
 				yylval.symptr=find_symbol_by_name(yytext);
 		  	  	if(yydebug)
