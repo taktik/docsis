@@ -154,6 +154,10 @@ add_mta_hash (unsigned char *tlvbuf, unsigned int tlvbuflen, unsigned int hash) 
     memcpy (tlvbuf + tlvbuflen - 3, "\x0b\x26\x30\x24\x06\x0c\x2b\x06\x01\x04\x01\xba\x08\x01\x01\x02\x09\x00\x04\x14", 20);
     tlvbuflen += 17;
   }
+  if (hash == 3) {
+    memcpy (tlvbuf + tlvbuflen - 3, "\x0b\x25\x30\x23\x06\x0b\x2b\x06\x01\x02\x01\x81\x0c\x01\x02\x0b\x00\x04\x14", 19);
+    tlvbuflen += 16;
+  }
 
   memcpy (tlvbuf + tlvbuflen, hash_value, SHA_DIGEST_LENGTH);
   tlvbuflen += SHA_DIGEST_LENGTH;
@@ -352,6 +356,14 @@ main (int argc, char *argv[])
         usage();
       }
       hash = 2;
+      continue;
+    }
+
+    if (!strcmp (argv[0], "-pktc2")) {
+      if (hash) {
+        usage();
+      }
+      hash = 3;
       continue;
     }
 
@@ -558,6 +570,10 @@ int encode_one_file ( char *input_file, char *output_file,
   }
   if (hash == 2) {
     printf("Adding EU ConfigHash to MTA file.\n");
+    buflen = add_mta_hash (buffer, buflen, hash);
+  }
+  if (hash == 3) {
+    printf("Adding PacketCable2.0 ConfigHash to MTA file.\n");
     buflen = add_mta_hash (buffer, buflen, hash);
   }
 
