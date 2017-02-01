@@ -155,24 +155,19 @@ add_mta_hash (unsigned char *tlvbuf, unsigned int tlvbuflen, unsigned int hash, 
     tlvbuflen += 17;
   }
   if (hash == 3) {
-    // memcpy (tlvbuf + tlvbuflen - 3, "\x0b\x25\x30\x23\x06\x0b\x2b\x06\x01\x02\x01\x81\x0c\x01\x02\x0b\x00\x04\x14", 19);
-    // tlvbuflen += 16;
 
-    printf("--- create_snmpset_tlv ---\n");
+    /* Init SnmpMibObject symbol_entry */
     char *sym_str = "SnmpMibObject";
     struct symbol_entry *hash_sym_ptr = find_symbol_by_name (sym_str);
-    printf("Docsis code : %d\n", hash_sym_ptr->docsis_code);
 
+    /* Init hash OID */
     char *hash_oid = (char*) malloc(sizeof(char)*(strlen(hash_oid_arg)+1));
     memcpy(hash_oid, hash_oid_arg, strlen(hash_oid_arg)+1);
-    printf("OID : %s\n", hash_oid);
 
-//    char *hash_oid = (char*) malloc(sizeof(char)*19);
-//    strncpy(hash_oid, "mib-2.140.1.2.11.0", 19);
-
+    /* Init hash OID asn type */
     char hash_oid_asntype = 'x';
-    printf("ASN TYPE : %c\n", hash_oid_asntype);
 
+    /* Compute SHA1 hash hex representation */
     int size = SHA_DIGEST_LENGTH;
     char* buf_str = (char*) malloc (2*size + 1);
     char* buf_ptr = buf_str;
@@ -182,18 +177,16 @@ add_mta_hash (unsigned char *tlvbuf, unsigned int tlvbuflen, unsigned int hash, 
     }
     sprintf(buf_ptr,"\n");
     *(buf_ptr + 1) = '\0';
-    printf("HASHVALUE : %s\n", buf_str);
 
+    /* Init hash OID value */
     union t_val *hash_hex_value = (union t_val*) malloc(sizeof(union t_val));
     hash_hex_value->strval = buf_str;
-    printf("value : %s\n", hash_hex_value->strval);
 
+    /* Compute tlv of hash line */
     struct tlv *hash_tlv = create_snmpset_tlv(hash_sym_ptr, hash_oid, hash_oid_asntype, hash_hex_value);
-    printf("tlvptr docsis : %d\n", hash_tlv->docs_code);
-    printf("tlvptr tlv_len : %d\n", hash_tlv->tlv_len);
-
     free(hash_hex_value);
 
+    /* Compute tlv binary representation and append to config file */
     int buflen = flatten_tlvsubtree(tlvbuf + tlvbuflen - 3, 0, hash_tlv);
     tlvbuflen += buflen-3;
     memcpy (tlvbuf + tlvbuflen, "\xfe\x01\xff", 3);
