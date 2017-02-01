@@ -29,6 +29,8 @@
 #include <string.h>
 #include <math.h>
 #include <sys/types.h>
+#include <dirent.h>
+
 /*
 #ifdef WIN32
 #include <winsock.h>
@@ -98,7 +100,7 @@ int parse_config_file (char *file, struct tlv **parse_tree_result);
 int yylex (void);
 void decode_file (char *file);
 int encode_one_file (char *input_file, char *output_file,
-		       unsigned char *key, unsigned int keylen, int encode_docsis, unsigned int hash, char *hash_oid);
+		       unsigned char *key, unsigned int keylen, int encode_docsis, unsigned int hash, char *hash_oid, char *dialplan_filename);
 char *get_output_name (char *input_path, char *new_extension);
 
 #endif /* __DOCSIS_H */

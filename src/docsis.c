@@ -203,8 +203,19 @@ add_mta_hash (unsigned char *tlvbuf, unsigned int tlvbuflen, unsigned int hash, 
   return (tlvbuflen);
 }
 
+static char* concat(const char *s1, const char *s2)
+{
+    const size_t len1 = strlen(s1);
+    const size_t len2 = strlen(s2);
+    char *result = malloc(len1+len2+1);//+1 for the zero-terminator
+    //in real code you would check for errors in malloc here
+    memcpy(result, s1, len1);
+    memcpy(result+len1, s2, len2+1);//+1 to copy the null-terminator
+    return result;
+}
+
 static unsigned int
-add_dialplan (unsigned char *tlvbuf, unsigned int tlvbuflen) {
+add_dialplan (unsigned char *tlvbuf, unsigned int tlvbuflen, char *dialplan_folder, char *dialplan_filename) {
   FILE *dialplan_file;
   char *dialplan_buffer;
   unsigned int fileSize;
@@ -214,9 +225,12 @@ add_dialplan (unsigned char *tlvbuf, unsigned int tlvbuflen) {
   unsigned short local_char;
   unsigned short *p_local_char = &local_char;
 
-  dialplan_file = fopen("dialplan.txt", "rb");
+  char *dialplan_folder_slash = concat(dialplan_folder, "/");
+  char *dialplan_file_path = concat(dialplan_folder_slash, dialplan_filename);
+
+  dialplan_file = fopen(dialplan_file_path, "rb");
   if (!dialplan_file) {
-    fprintf(stderr, "Cannot open dialplan.txt file, fatal error, closing.\n");
+    fprintf(stderr, "Cannot open %s file, fatal error, closing.\n", dialplan_filename);
     exit(-1);
   }
   fseek(dialplan_file, 0, SEEK_END);
@@ -263,8 +277,14 @@ add_dialplan (unsigned char *tlvbuf, unsigned int tlvbuflen) {
     memcpy(tlvbuf + tlvbuflen, p_local_v_len, sizeof(local_v_len));
     tlvbuflen += sizeof(local_v_len);
   }
-  memcpy(tlvbuf + tlvbuflen, "\x06\x12\x2b\x06\x01\x04\x01\xa3\x0b\x02\x02\x08\x02\x01\x01\x03\x01\x01\x02\x01", 20);
-  tlvbuflen += 20;
+  
+  memcpy(tlvbuf + tlvbuflen, "\x06\x12\x2b\x06\x01\x04\x01\xa3\x0b\x02\x02\x08\x02\x01\x01\x03\x01\x01\x02", 19);
+  tlvbuflen += 19;
+
+  uint8_t suffix = atoi(dialplan_filename);
+  memcpy(tlvbuf + tlvbuflen, &suffix, 1);
+  tlvbuflen += 1;
+
   memcpy(tlvbuf + tlvbuflen, "\x04", 1);
   tlvbuflen += 1;
 
@@ -286,6 +306,10 @@ add_dialplan (unsigned char *tlvbuf, unsigned int tlvbuflen) {
 
   memcpy (tlvbuf + tlvbuflen, "\xfe\x01\xff", 3);
   tlvbuflen += 3;
+
+  free(dialplan_folder_slash);
+  free(dialplan_file_path);
+
   return (tlvbuflen);
 }
 
@@ -343,7 +367,7 @@ main (int argc, char *argv[])
 {
   unsigned char key[65];
   FILE *kf;
-  char *config_file=NULL, *key_file=NULL, *output_file=NULL, *extension_string=NULL, *custom_mibs=NULL, *hash_oid=NULL, *dialplan_filename=NULL;
+  char *config_file=NULL, *key_file=NULL, *output_file=NULL, *extension_string=NULL, *custom_mibs=NULL, *hash_oid=NULL, *dialplan_folder=NULL;
   unsigned int keylen = 0;
   unsigned int encode_docsis = FALSE, decode_bin = FALSE, hash = 0;
   int i;
@@ -408,9 +432,14 @@ main (int argc, char *argv[])
     }
 
     if (!strcmp (argv[0], "-dialplan")) {
+
+      if (argc < 2 ) {
+        usage();
+      }
+
       dialplan = 1;
 
-      dialplan_filename = argv[1];
+      dialplan_folder = argv[1];
 
       argc--; argv++;
       continue;
@@ -522,7 +551,7 @@ main (int argc, char *argv[])
 			}
 
 			fprintf(stderr, "Processing input file %s: output to  %s\n",argv[i], output_file);
-			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash, hash_oid)) {
+			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash, hash_oid, dialplan_folder)) {
 				exit(2);
 			}
 			free (output_file);
@@ -536,7 +565,7 @@ main (int argc, char *argv[])
 				continue;
 			}
 			fprintf (stderr, "Processing input file %s: output to  %s\n",argv[i], output_file);
-			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash, hash_oid)) {
+			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash, hash_oid, dialplan_folder)) {
 				exit(2);
 			}
 			free (output_file);
@@ -544,7 +573,7 @@ main (int argc, char *argv[])
 		}
 	}
   } else {
-	if (encode_one_file (config_file, output_file, key, keylen, encode_docsis, hash, hash_oid)) {
+	if (encode_one_file (config_file, output_file, key, keylen, encode_docsis, hash, hash_oid, dialplan_folder)) {
 		exit(2);
 	}
 	/* encode argv[1] */
@@ -555,7 +584,7 @@ main (int argc, char *argv[])
 }
 
 int encode_one_file ( char *input_file, char *output_file,
-	 		unsigned char *key, unsigned int keylen, int encode_docsis, unsigned int hash, char *hash_oid)
+	 		unsigned char *key, unsigned int keylen, int encode_docsis, unsigned int hash, char *hash_oid, char *dialplan_folder)
 {
   int parse_result=0;
   unsigned int buflen;
@@ -604,10 +633,24 @@ int encode_one_file ( char *input_file, char *output_file,
     }
 
   if (dialplan == 1) {
-    printf("Adding PC20 dialplan from external file.\n");
-    buflen = add_dialplan (buffer, buflen);
-  }
+    printf("Adding PC20 dialplan from external files.\n");
 
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(dialplan_folder);
+    if (d)
+    {
+      while ((dir = readdir(d)) != NULL)
+      {
+        if (dir->d_type == DT_REG)
+          {
+             printf("Adding dialplan : %s\n", dir->d_name);
+             buflen = add_dialplan (buffer, buflen, dialplan_folder, dir->d_name);
+          }
+      }
+      closedir(d);
+    }
+  }
   if (hash == 1) {
     printf("Adding NA ConfigHash to MTA file.\n");
     buflen = add_mta_hash (buffer, buflen, hash, hash_oid);
