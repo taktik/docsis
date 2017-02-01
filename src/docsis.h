@@ -30,7 +30,7 @@
 #include <math.h>
 #include <sys/types.h>
 #include <dirent.h>
-
+#include <ctype.h>
 /*
 #ifdef WIN32
 #include <winsock.h>

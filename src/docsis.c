@@ -277,7 +277,7 @@ add_dialplan (unsigned char *tlvbuf, unsigned int tlvbuflen, char *dialplan_fold
     memcpy(tlvbuf + tlvbuflen, p_local_v_len, sizeof(local_v_len));
     tlvbuflen += sizeof(local_v_len);
   }
-  
+
   memcpy(tlvbuf + tlvbuflen, "\x06\x12\x2b\x06\x01\x04\x01\xa3\x0b\x02\x02\x08\x02\x01\x01\x03\x01\x01\x02", 19);
   tlvbuflen += 19;
 
@@ -615,7 +615,7 @@ int encode_one_file ( char *input_file, char *output_file,
 /* walk the tree to find out how much memory we need */
 	/* leave some room for CM MIC, CMTS MIC, pad, and a HUGE PC20 dialplan */
   buflen = tlvtreelen (global_tlvtree_head);
-  buffer = (unsigned char *) malloc ( buflen + 255 + 8192 );
+  buffer = (unsigned char *) malloc ( buflen + 255 + 8192*10 );
   buflen = flatten_tlvsubtree(buffer, 0, global_tlvtree_head);
 
 
@@ -643,10 +643,19 @@ int encode_one_file ( char *input_file, char *output_file,
       while ((dir = readdir(d)) != NULL)
       {
         if (dir->d_type == DT_REG)
-          {
-             printf("Adding dialplan : %s\n", dir->d_name);
-             buflen = add_dialplan (buffer, buflen, dialplan_folder, dir->d_name);
+        {
+          int num = atoi(dir->d_name);
+          if(num == 0) {
+            printf("Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
+          } else {
+            if(num>255 || num<0) {
+              printf("Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
+            } else {
+              printf("Adding dialplan : %s\n", dir->d_name);
+              buflen = add_dialplan (buffer, buflen, dialplan_folder, dir->d_name);
+            }
           }
+        }
       }
       closedir(d);
     }
