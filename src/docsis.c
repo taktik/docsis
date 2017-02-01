@@ -138,7 +138,7 @@ add_cmts_mic (unsigned char *tlvbuf, unsigned int tlvbuflen,
 }
 
 static unsigned int
-add_mta_hash (unsigned char *tlvbuf, unsigned int tlvbuflen, unsigned int hash) {
+add_mta_hash (unsigned char *tlvbuf, unsigned int tlvbuflen, unsigned int hash, char *hash_oid_arg) {
   SHA_CTX shactx;
   unsigned char hash_value[SHA_DIGEST_LENGTH];
 
@@ -155,14 +155,57 @@ add_mta_hash (unsigned char *tlvbuf, unsigned int tlvbuflen, unsigned int hash) 
     tlvbuflen += 17;
   }
   if (hash == 3) {
-    memcpy (tlvbuf + tlvbuflen - 3, "\x0b\x25\x30\x23\x06\x0b\x2b\x06\x01\x02\x01\x81\x0c\x01\x02\x0b\x00\x04\x14", 19);
-    tlvbuflen += 16;
+    // memcpy (tlvbuf + tlvbuflen - 3, "\x0b\x25\x30\x23\x06\x0b\x2b\x06\x01\x02\x01\x81\x0c\x01\x02\x0b\x00\x04\x14", 19);
+    // tlvbuflen += 16;
+
+    printf("--- create_snmpset_tlv ---\n");
+    char *sym_str = "SnmpMibObject";
+    struct symbol_entry *hash_sym_ptr = find_symbol_by_name (sym_str);
+    printf("Docsis code : %d\n", hash_sym_ptr->docsis_code);
+
+    char *hash_oid = (char*) malloc(sizeof(char)*(strlen(hash_oid_arg)+1));
+    memcpy(hash_oid, hash_oid_arg, strlen(hash_oid_arg)+1);
+    printf("OID : %s\n", hash_oid);
+
+//    char *hash_oid = (char*) malloc(sizeof(char)*19);
+//    strncpy(hash_oid, "mib-2.140.1.2.11.0", 19);
+
+    char hash_oid_asntype = 'x';
+    printf("ASN TYPE : %c\n", hash_oid_asntype);
+
+    int size = SHA_DIGEST_LENGTH;
+    char* buf_str = (char*) malloc (2*size + 1);
+    char* buf_ptr = buf_str;
+    int i;
+    for (i=0; i<size; i++) {
+      buf_ptr += sprintf(buf_ptr, "%02X", hash_value[i]);
+    }
+    sprintf(buf_ptr,"\n");
+    *(buf_ptr + 1) = '\0';
+    printf("HASHVALUE : %s\n", buf_str);
+
+    union t_val *hash_hex_value = (union t_val*) malloc(sizeof(union t_val));
+    hash_hex_value->strval = buf_str;
+    printf("value : %s\n", hash_hex_value->strval);
+
+    struct tlv *hash_tlv = create_snmpset_tlv(hash_sym_ptr, hash_oid, hash_oid_asntype, hash_hex_value);
+    printf("tlvptr docsis : %d\n", hash_tlv->docs_code);
+    printf("tlvptr tlv_len : %d\n", hash_tlv->tlv_len);
+
+    free(hash_hex_value);
+
+    int buflen = flatten_tlvsubtree(tlvbuf + tlvbuflen - 3, 0, hash_tlv);
+    tlvbuflen += buflen-3;
+    memcpy (tlvbuf + tlvbuflen, "\xfe\x01\xff", 3);
+    tlvbuflen += 3;
   }
 
-  memcpy (tlvbuf + tlvbuflen, hash_value, SHA_DIGEST_LENGTH);
-  tlvbuflen += SHA_DIGEST_LENGTH;
-  memcpy (tlvbuf + tlvbuflen, "\xfe\x01\xff", 3);
-  tlvbuflen += 3;
+  if (hash == 1 || hash == 2) {
+    memcpy (tlvbuf + tlvbuflen, hash_value, SHA_DIGEST_LENGTH);
+    tlvbuflen += SHA_DIGEST_LENGTH;
+    memcpy (tlvbuf + tlvbuflen, "\xfe\x01\xff", 3);
+    tlvbuflen += 3;
+  }
 
   return (tlvbuflen);
 }
@@ -307,7 +350,7 @@ main (int argc, char *argv[])
 {
   unsigned char key[65];
   FILE *kf;
-  char *config_file=NULL, *key_file=NULL, *output_file=NULL, *extension_string=NULL, *custom_mibs=NULL;
+  char *config_file=NULL, *key_file=NULL, *output_file=NULL, *extension_string=NULL, *custom_mibs=NULL, *hash_oid=NULL, *dialplan_filename=NULL;
   unsigned int keylen = 0;
   unsigned int encode_docsis = FALSE, decode_bin = FALSE, hash = 0;
   int i;
@@ -360,15 +403,23 @@ main (int argc, char *argv[])
     }
 
     if (!strcmp (argv[0], "-pktc2")) {
-      if (hash) {
+      if (hash || argc<2) {
         usage();
       }
       hash = 3;
+
+      hash_oid=argv[1];
+
+      argc--; argv++;
       continue;
     }
 
     if (!strcmp (argv[0], "-dialplan")) {
       dialplan = 1;
+
+      dialplan_filename = argv[1];
+
+      argc--; argv++;
       continue;
     }
 
@@ -478,7 +529,7 @@ main (int argc, char *argv[])
 			}
 
 			fprintf(stderr, "Processing input file %s: output to  %s\n",argv[i], output_file);
-			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash)) {
+			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash, hash_oid)) {
 				exit(2);
 			}
 			free (output_file);
@@ -492,7 +543,7 @@ main (int argc, char *argv[])
 				continue;
 			}
 			fprintf (stderr, "Processing input file %s: output to  %s\n",argv[i], output_file);
-			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash)) {
+			if (encode_one_file (argv[i], output_file, key, keylen, encode_docsis, hash, hash_oid)) {
 				exit(2);
 			}
 			free (output_file);
@@ -500,7 +551,7 @@ main (int argc, char *argv[])
 		}
 	}
   } else {
-	if (encode_one_file (config_file, output_file, key, keylen, encode_docsis, hash)) {
+	if (encode_one_file (config_file, output_file, key, keylen, encode_docsis, hash, hash_oid)) {
 		exit(2);
 	}
 	/* encode argv[1] */
@@ -511,7 +562,7 @@ main (int argc, char *argv[])
 }
 
 int encode_one_file ( char *input_file, char *output_file,
-	 		unsigned char *key, unsigned int keylen, int encode_docsis, unsigned int hash)
+	 		unsigned char *key, unsigned int keylen, int encode_docsis, unsigned int hash, char *hash_oid)
 {
   int parse_result=0;
   unsigned int buflen;
@@ -566,15 +617,15 @@ int encode_one_file ( char *input_file, char *output_file,
 
   if (hash == 1) {
     printf("Adding NA ConfigHash to MTA file.\n");
-    buflen = add_mta_hash (buffer, buflen, hash);
+    buflen = add_mta_hash (buffer, buflen, hash, hash_oid);
   }
   if (hash == 2) {
     printf("Adding EU ConfigHash to MTA file.\n");
-    buflen = add_mta_hash (buffer, buflen, hash);
+    buflen = add_mta_hash (buffer, buflen, hash, hash_oid);
   }
   if (hash == 3) {
     printf("Adding PacketCable2.0 ConfigHash to MTA file.\n");
-    buflen = add_mta_hash (buffer, buflen, hash);
+    buflen = add_mta_hash (buffer, buflen, hash, hash_oid);
   }
 
   fprintf (stdout, "Final content of config file:\n");
