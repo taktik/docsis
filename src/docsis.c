@@ -636,7 +636,6 @@ int encode_one_file ( char *input_file, char *output_file,
 
   if (dialplan == 1) {
     printf("Adding PC20 dialplan from external files.\n");
-
     DIR *d;
     struct dirent *dir;
     d = opendir(dialplan_folder);
@@ -648,20 +647,25 @@ int encode_one_file ( char *input_file, char *output_file,
         {
           int num = atoi(dir->d_name);
           if(num == 0) {
-            printf("Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
+            fprintf(stderr, "Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
           } else {
             if(num>255 || num<0) {
-              printf("Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
+              fprintf(stderr, "Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
             } else {
               printf("Adding dialplan : %s\n", dir->d_name);
               buflen = add_dialplan (buffer, buflen, dialplan_folder, dir->d_name);
             }
           }
+        } else {
+          fprintf(stderr, "Not valid file '%s'\n", dir->d_name);
         }
       }
       closedir(d);
+    } else {
+      fprintf(stderr, "Could not open directory '%s'\n", dialplan_folder);
     }
   }
+
   if (hash == 1) {
     printf("Adding NA ConfigHash to MTA file.\n");
     buflen = add_mta_hash (buffer, buflen, hash, hash_oid);
