@@ -643,21 +643,16 @@ int encode_one_file ( char *input_file, char *output_file,
     {
       while ((dir = readdir(d)) != NULL)
       {
-        if (dir->d_type == DT_REG)
-        {
-          int num = atoi(dir->d_name);
-          if(num == 0) {
+        int num = atoi(dir->d_name);
+        if(num == 0) {
+          fprintf(stderr, "Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
+        } else {
+          if(num>255 || num<0) {
             fprintf(stderr, "Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
           } else {
-            if(num>255 || num<0) {
-              fprintf(stderr, "Not valid dialplan file name '%s', must be a non 0 uint8_t\n", dir->d_name);
-            } else {
-              printf("Adding dialplan : %s\n", dir->d_name);
-              buflen = add_dialplan (buffer, buflen, dialplan_folder, dir->d_name);
-            }
+            printf("Adding dialplan : %s\n", dir->d_name);
+            buflen = add_dialplan (buffer, buflen, dialplan_folder, dir->d_name);
           }
-        } else {
-          fprintf(stderr, "Not valid file '%s'\n", dir->d_name);
         }
       }
       closedir(d);
