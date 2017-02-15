@@ -42,7 +42,6 @@ src/docsis_lex.c
 src/docsis_yy.c
 src/docsis_yy.h
 doc/config-settings.html
-po/Makefile.in.in
 tests/*.new
 /Default/
 .cproject
@@ -55,3 +54,6 @@ description-pak
 *.gcno
 *.gcda
 *.gcov
+.idea/
+po/
+src/.libs/
