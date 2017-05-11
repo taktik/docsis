@@ -72,7 +72,6 @@ char *tsave;
 SnmpWriteControl	{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_SNMPW;   }
 SnmpMibObject		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_SNMPSET; }
 ManufacturerCVC		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_CVC; }
-MtaConfigDelimiter		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENTIFIER; }
 CoSignerCVC		{ yylval.symptr=find_symbol_by_name(yytext);return T_IDENT_CVC; }
 Integer			{ return T_ASNTYPE_INT; 	}
 Unsigned32		{ return T_ASNTYPE_UINT; 	}
@@ -101,19 +100,29 @@ TlvStringZero		{ return T_TLV_STRZERO_VALUE; 	}
 TlvType			{ return T_TLV_TYPE;		}
 
 [Mm][Aa][Ii][Nn]        { yylval.strval=yytext;return T_MAIN; }
+
+[A-Za-z]+[A-Za-z0-9]*	{
+	if(symbol_exists(yytext))
+	{
+		yylval.symptr=find_symbol_by_name(yytext);
+		if(yydebug)
+			fprintf(stderr, "yylex:returning T_IDENTIFIER, yylval.symptr->sym_ident=%s\n",
+				yylval.symptr->sym_ident);
+		return T_IDENTIFIER;
+	}
+	else
+	{
+		TSAVE(yytext);
+		yylval.strval=tsave; 
+		return T_LABEL_OID;
+	}
+}
+
 (\.{1})*([A-Za-z])([A-Za-z0-9_-])*	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
 (\.{1})*([A-Za-z0-9_-]+\.)+[A-Za-z0-9]+	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
 (\.{1})*([A-Za-z0-9_-]+\.)+'[\[A-Za-z0-9@,:_\-\.\]]+'	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
 (\.{1})*([A-Za-z0-9_-]+\.)+((\"{1})*[A-Za-z0-9,:_\-\.]+(\"{1})*)+	{ TSAVE(yytext);yylval.strval=tsave; return T_LABEL_OID; }
 ([0-9]+:){3}[0-9]+\.[0-9]+	{ TSAVE(yytext);yylval.strval=tsave; return T_TIMETICKS; }
-
-[A-Za-z]+[A-Za-z0-9]*	{
-				yylval.symptr=find_symbol_by_name(yytext);
-		  	  	if(yydebug)
-				        fprintf(stderr, "yylex:returning T_IDENTIFIER, yylval.symptr->sym_ident=%s\n",
-					yylval.symptr->sym_ident);
-			 	return T_IDENTIFIER;
-			}
 
 \"		{ BEGIN STRING; str=strbuf; memset(strbuf,0,2048); strsize=0; }
 <STRING>\\\"	{
@@ -179,5 +188,17 @@ struct symbol_entry
  }
  fprintf(stderr, "Unrecognized symbol %s at line %d\n", sym_str, line);
  exit(-1);
+}
+
+int symbol_exists(char *sym_str) 
+{
+	int i;
+
+ for ( i=0; i<NUM_IDENTIFIERS; i++) {
+        if (!strcmp(sym_str, global_symtable[i].sym_ident)) {
+                return 1;
+        }
+ }
+ return 0;
 }
 
