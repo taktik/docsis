@@ -90,6 +90,8 @@ unsigned int flatten_tlvsubtree (unsigned char *buf, unsigned int used_size, str
 
 /* Find the symbol_entry given the symbol identifier -> docsis_lex.l  */
 struct symbol_entry *find_symbol_by_name (char *sym_str);
+/* Check if the symbol can find a result when invoking find_symbol_by_name */
+int symbol_exists(char *sym_str) ;
 
 void hmac_md5 (unsigned char *text, int text_len, unsigned char *key,
 	       size_t key_len, unsigned char *digest);
