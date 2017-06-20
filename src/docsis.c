@@ -676,7 +676,20 @@ int encode_one_file ( char *input_file, char *output_file,
     printf("Adding PacketCable2.0 ConfigHash to MTA file.\n");
     buflen = add_mta_hash (buffer, buflen, hash, hash_oid);
   }
-
+  if (!strcmp (output_file, "-"))
+    {
+      of = stdout;
+    }
+  else if ((of = fopen (output_file, "wb")) == NULL)
+    {
+      fprintf (stderr, "docsis: error: can't open output file %s\n", output_file);
+      return -2;
+    }
+  if (fwrite (buffer, 1, buflen, of) != buflen)
+    {
+      fprintf (stderr, "docsis: error: can't write to output file %s\n", output_file);
+      return -2;
+    }
   fclose (of);
   free(buffer);
   return 0;
